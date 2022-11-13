@@ -11,6 +11,16 @@ use std::collections::HashMap;
 pub struct TextDocuments(HashMap<Url, FullTextDocument>);
 
 impl TextDocuments {
+    /// create a text documents
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use language_server_textdocument::TextDocuments;
+    /// let text_documents = TextDocuments::new();
+    /// ```
     pub fn new() -> Self {
         Self(HashMap::new())
     }
@@ -19,14 +29,63 @@ impl TextDocuments {
         &self.0
     }
 
+    /// get specify document by giving Url
+    ///
+    /// # Examples:
+    ///
+    /// Basic usage:
+    /// ```
+    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_types::Url;
+    ///
+    /// let text_documents = TextDocuments::new();
+    /// let uri:Url = "file://example.txt".parse().unwrap();
+    /// text_documents.get_document(&uri);
+    /// ```
     pub fn get_document(&self, uri: &Url) -> Option<&FullTextDocument> {
         self.0.get(uri)
     }
 
+    /// get specify document content by giving Range
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```no_run
+    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_types::{Url, Range, Position};
+    ///
+    /// let uri: Url = "file://example.txt".parse().unwrap();
+    /// let text_documents = TextDocuments::new();
+    ///
+    /// // get document all content
+    /// let content = text_documents.get_document_content(&uri, None);
+    /// assert_eq!(content, Some("hello rust!"));
+    ///
+    /// // get document specify content by range
+    /// let (start, end) = (Position::new(0, 1), Position::new(0, 9));
+    /// let range = Range::new(start, end);
+    /// let sub_content = text_documents.get_document_content(&uri, Some(range));
+    /// assert_eq!(sub_content, Some("ello rus"));
+    /// ```
     pub fn get_document_content(&self, uri: &Url, range: Option<Range>) -> Option<&str> {
         self.0.get(uri).map(|document| document.get_content(range))
     }
 
+    /// get specify document's language by giving Url
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```no_run
+    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_types::Url;
+    ///
+    /// let text_documents = TextDocuments::new();
+    /// let uri:Url = "file://example.js".parse().unwrap();
+    /// let language =  text_documents.get_document_language(&uri);
+    /// assert_eq!(language, Some("javascript"));
+    /// ```
     pub fn get_document_language(&self, uri: &Url) -> Option<&str> {
         self.0.get(uri).map(|document| document.language_id())
     }

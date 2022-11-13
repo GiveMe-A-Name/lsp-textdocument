@@ -58,15 +58,11 @@ impl FullTextDocument {
                         .chain(end_slice.chars())
                         .collect();
 
-                    // update line_offsets
-                    // FIXME: can't update line_offsets correctly.
                     let (start_line, end_line) = (start.line, end.line);
                     assert!(start_line <= end_line);
                     let added_line_offsets =
                         computed_line_offsets(&text, false, Some(start_offset));
 
-                    // dbg!(&self.line_offsets);
-                    // TODO: how to insert line_offsets into self.line_offsets
                     self.line_offsets = self
                         .line_offsets
                         .as_slice()
@@ -111,11 +107,32 @@ impl FullTextDocument {
         self.version = version;
     }
 
-    /// get document's language id
+    /// document's language id
     pub fn language_id(&self) -> &str {
         &self.language_id
     }
 
+    /// get document content
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use language_server_textdocument::FullTextDocument;
+    /// use lsp_types::{Range, Position};
+    ///
+    /// let text_documents = FullTextDocument::new("plain_text".to_string(), 1, "hello rust!".to_string());
+    ///
+    /// // get document all content
+    /// let content = text_documents.get_content(None);
+    /// assert_eq!(content, "hello rust!");
+    ///
+    /// // get document specify content by range
+    /// let (start, end) = (Position::new(0, 1), Position::new(0, 9));
+    /// let range = Range::new(start, end);
+    /// let sub_content = text_documents.get_content(Some(range));
+    /// assert_eq!(sub_content, "ello rus");
+    /// ```
     pub fn get_content(&self, range: Option<Range>) -> &str {
         match range {
             Some(Range { start, end }) => {
@@ -127,6 +144,7 @@ impl FullTextDocument {
         }
     }
 
+    /// a amount of document content line
     fn line_count(&self) -> u32 {
         self.line_offsets
             .len()
@@ -134,6 +152,7 @@ impl FullTextDocument {
             .expect("The number of lines of text passed in is too long")
     }
 
+    /// document content len
     fn content_len(&self) -> u32 {
         self.content
             .chars()
