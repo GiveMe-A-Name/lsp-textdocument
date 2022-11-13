@@ -1,0 +1,11 @@
+[package]
+name = "language-server-textdocument"
+version = "0.1.0"
+edition = "2021"
+authors = ["qixuan"]
+description = "a textdocument manager in lsp communication"
+readme = "README.md"
+
+[dependencies]
+lsp-types = "0.93.2"
+serde_json = "1.0"
