@@ -18,7 +18,8 @@ impl TextDocuments {
     /// Basic usage:
     ///
     /// ```
-    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_textdocument::TextDocuments;
+    ///
     /// let text_documents = TextDocuments::new();
     /// ```
     pub fn new() -> Self {
@@ -35,7 +36,7 @@ impl TextDocuments {
     ///
     /// Basic usage:
     /// ```
-    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_textdocument::TextDocuments;
     /// use lsp_types::Url;
     ///
     /// let text_documents = TextDocuments::new();
@@ -52,7 +53,7 @@ impl TextDocuments {
     ///
     /// Basic usage:
     /// ```no_run
-    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_textdocument::TextDocuments;
     /// use lsp_types::{Url, Range, Position};
     ///
     /// let uri: Url = "file://example.txt".parse().unwrap();
@@ -78,7 +79,7 @@ impl TextDocuments {
     ///
     /// Basic usage:
     /// ```no_run
-    /// use language_server_textdocument::TextDocuments;
+    /// use lsp_textdocument::TextDocuments;
     /// use lsp_types::Url;
     ///
     /// let text_documents = TextDocuments::new();
@@ -90,6 +91,20 @@ impl TextDocuments {
         self.0.get(uri).map(|document| document.language_id())
     }
 
+    /// listening the notification from client, you just need to pass `method` and `params`
+    ///
+    /// # Examples:
+    ///
+    /// Basic usage:
+    /// ```no_run
+    /// use lsp_textdocument::TextDocuments;
+    ///
+    /// let method = "textDocument/didOpen";
+    /// let params = serde_json::to_value("message produced by client").unwrap();
+    ///
+    /// let mut text_documents = TextDocuments::new();
+    /// text_documents.listen(method, params);
+    /// ```
     pub fn listen(&mut self, method: &str, params: Value) {
         match method {
             DidOpenTextDocument::METHOD => {

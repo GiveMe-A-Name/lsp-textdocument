@@ -118,7 +118,7 @@ impl FullTextDocument {
     ///
     /// Basic usage:
     /// ```
-    /// use language_server_textdocument::FullTextDocument;
+    /// use lsp_textdocument::FullTextDocument;
     /// use lsp_types::{Range, Position};
     ///
     /// let text_documents = FullTextDocument::new("plain_text".to_string(), 1, "hello rust!".to_string());
