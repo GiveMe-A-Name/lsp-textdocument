@@ -68,7 +68,9 @@ fn main_loop(
                 eprintln!("got response: {:?}", resp);
             }
             Message::Notification(not) => {
-                documents.listen(not.method.as_str(), not.params.clone());
+                if !documents.listen(not.method.as_str(), &not.params) {
+                    // Add handlers for other types of notifications here.
+                }
             }
         }
     }

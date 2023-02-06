@@ -103,12 +103,12 @@ impl TextDocuments {
     /// let params = serde_json::to_value("message produced by client").unwrap();
     ///
     /// let mut text_documents = TextDocuments::new();
-    /// text_documents.listen(method, params);
+    /// text_documents.listen(method, &params);
     /// ```
-    pub fn listen(&mut self, method: &str, params: Value) {
+    pub fn listen(&mut self, method: &str, params: &Value) -> bool {
         match method {
             DidOpenTextDocument::METHOD => {
-                let params: DidOpenTextDocumentParams = serde_json::from_value(params)
+                let params: DidOpenTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidOpenTextDocumentParams");
                 let text_document = params.text_document;
 
@@ -118,9 +118,10 @@ impl TextDocuments {
                     text_document.text,
                 );
                 self.0.insert(text_document.uri, document);
+                true
             }
             DidChangeTextDocument::METHOD => {
-                let params: DidChangeTextDocumentParams = serde_json::from_value(params)
+                let params: DidChangeTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidChangeTextDocumentParams");
 
                 if let Some(document) = self.0.get_mut(&params.text_document.uri) {
@@ -128,15 +129,18 @@ impl TextDocuments {
                     let version = params.text_document.version;
                     document.update(changes, version);
                 };
+                true
             }
             DidCloseTextDocument::METHOD => {
-                let params: DidCloseTextDocumentParams = serde_json::from_value(params)
+                let params: DidCloseTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidCloseTextDocumentParams");
 
                 self.0.remove(&params.text_document.uri);
+                true
             }
             _ => {
                 // ignore other request
+                false
             }
         }
     }
