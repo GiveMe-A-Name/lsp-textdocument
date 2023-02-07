@@ -1,8 +1,5 @@
 name: Cargo Build & Test
 
-env:
-  rust_nightly: nightly-2023-01-10
-
 on:
   push:
     paths-ignore:
@@ -19,7 +16,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        toolchain: ${{ env.rust_nightly }}
+        toolchain:
+          - nightly-2022-11-03
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
