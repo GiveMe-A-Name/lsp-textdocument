@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub struct TextDocuments(HashMap<Url, FullTextDocument>);
 
 impl TextDocuments {
-    /// create a text documents
+    /// Create a text documents
     ///
     /// # Examples
     ///
@@ -30,7 +30,7 @@ impl TextDocuments {
         &self.0
     }
 
-    /// get specify document by giving Url
+    /// Get specify document by giving Url
     ///
     /// # Examples:
     ///
@@ -47,7 +47,7 @@ impl TextDocuments {
         self.0.get(uri)
     }
 
-    /// get specify document content by giving Range
+    /// Get specify document content by giving Range
     ///
     /// # Examples
     ///
@@ -73,7 +73,7 @@ impl TextDocuments {
         self.0.get(uri).map(|document| document.get_content(range))
     }
 
-    /// get specify document's language by giving Url
+    /// Get specify document's language by giving Url
     ///
     /// # Examples
     ///
@@ -91,7 +91,7 @@ impl TextDocuments {
         self.0.get(uri).map(|document| document.language_id())
     }
 
-    /// listening the notification from client, you just need to pass `method` and `params`
+    /// Listening the notification from client, you just need to pass `method` and `params`
     ///
     /// # Examples:
     ///
