@@ -107,12 +107,12 @@ impl FullTextDocument {
         self.version = version;
     }
 
-    /// document's language id
+    /// Document's language id
     pub fn language_id(&self) -> &str {
         &self.language_id
     }
 
-    /// get document content
+    /// Get document content
     ///
     /// # Examples
     ///
@@ -144,16 +144,16 @@ impl FullTextDocument {
         }
     }
 
-    /// a amount of document content line
-    fn line_count(&self) -> u32 {
+    /// A amount of document content line
+    pub fn line_count(&self) -> u32 {
         self.line_offsets
             .len()
             .try_into()
             .expect("The number of lines of text passed in is too long")
     }
 
-    /// document content len
-    fn content_len(&self) -> u32 {
+    /// The len of the document content
+    pub fn content_len(&self) -> u32 {
         self.content
             .chars()
             .count()
