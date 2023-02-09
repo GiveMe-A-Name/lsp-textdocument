@@ -112,6 +112,11 @@ impl FullTextDocument {
         &self.language_id
     }
 
+    /// Document's version
+    pub fn version(&self) -> i32 {
+        self.version
+    }
+
     /// Get document content
     ///
     /// # Examples
@@ -323,6 +328,7 @@ mod tests {
     #[test]
     fn test_update_part_content() {
         let mut text_document = full_text_document();
+        assert_eq!(text_document.version(), 2);
         let new_text = String::from("xx\ny");
         let range = Range {
             start: Position {
@@ -344,6 +350,7 @@ mod tests {
         );
 
         assert_eq!(&text_document.content, "he\nxx\ny\nworld");
-        assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8])
+        assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8]);
+        assert_eq!(text_document.version(), 1)
     }
 }
