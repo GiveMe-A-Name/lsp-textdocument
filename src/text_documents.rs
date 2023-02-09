@@ -6,9 +6,10 @@ use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Range, Url,
 };
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-pub struct TextDocuments(HashMap<Url, FullTextDocument>);
+#[derive(Default)]
+pub struct TextDocuments(BTreeMap<Url, FullTextDocument>);
 
 impl TextDocuments {
     /// Create a text documents
@@ -23,10 +24,10 @@ impl TextDocuments {
     /// let text_documents = TextDocuments::new();
     /// ```
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self(BTreeMap::new())
     }
 
-    pub fn documents(&self) -> &HashMap<Url, FullTextDocument> {
+    pub fn documents(&self) -> &BTreeMap<Url, FullTextDocument> {
         &self.0
     }
 
