@@ -79,7 +79,6 @@ impl FullTextDocument {
                         .map(|&x| x)
                         .collect::<Vec<_>>();
 
-                    dbg!(&self.line_offsets);
                     let diff =
                         (text.len() as i32).saturating_sub_unsigned(end_offset - start_offset);
                     if diff != 0 {
