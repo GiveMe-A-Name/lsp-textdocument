@@ -1,16 +1,12 @@
 name: Cargo Build & Test
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - ".gitignore"
-      - "README.md"
   pull_request:
     paths-ignore:
       - ".gitignore"
       - "README.md"
+      - "LICENSE"
+      - ".github/workflows/*"
 
 jobs:
   test:
