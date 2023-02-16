@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "lsp-textdocument"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "lsp-server",
