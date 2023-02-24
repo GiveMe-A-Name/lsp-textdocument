@@ -2,13 +2,16 @@ name: Publish
 
 on:
   push:
-    branches: [ "test/ci" ]
+    branches: [ "main" ]
+env: 
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
   publish:
-
+    if: "startsWith(github.event.head_commit.message, 'chore(release): publish')"
+  
     runs-on: ubuntu-latest
-
+    
     steps:
     - uses: actions/checkout@v3
     - name: publish
