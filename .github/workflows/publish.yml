@@ -1,0 +1,15 @@
+name: Publish
+
+on:
+  push:
+    branches: [ "test/ci" ]
+
+jobs:
+  publish:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: publish
+      run: cargo publish
