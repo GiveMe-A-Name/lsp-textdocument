@@ -32,6 +32,27 @@ fn computed_line_offsets(text: &str, is_at_line_start: bool, text_offset: Option
     line_offsets
 }
 
+/// given a string (in UTF-8) and a byte offset, returns the offset in UTF-16 code units
+///
+/// for example, consider a string containing a single 4-byte emoji. 4-byte characters
+/// in UTF-8 are supplementary plane characters that require two UTF-16 code units
+/// (surrogate pairs).
+///
+/// in this example:
+/// - offset 4 returns 2;
+/// - offsets 1, 2 or 3 return 0, because they are not on a character boundary and round down;
+/// - offset 5+ will return 2, the length of the string in UTF-16
+fn line_offset_utf16(line: &str, offset: u32) -> u32 {
+    let mut c = 0;
+    for (idx, char) in line.char_indices() {
+        if idx + char.len_utf8() > offset as usize || idx == offset as usize {
+            break;
+        }
+        c += char.len_utf16() as u32;
+    }
+    c
+}
+
 impl FullTextDocument {
     pub fn new(language_id: String, version: i32, content: String) -> Self {
         let line_offsets = computed_line_offsets(&content, true, None);
@@ -152,6 +173,19 @@ impl FullTextDocument {
         }
     }
 
+    fn get_line_and_offset(&self, line: u32) -> Option<(&str, u32)> {
+        self.line_offsets.get(line as usize).map(|&line_offset| {
+            let len: u32 = self.content_len();
+            let eol_offset = self.line_offsets.get((line + 1) as usize).unwrap_or(&len);
+            let line = &self.content[line_offset as usize..*eol_offset as usize];
+            (line, line_offset)
+        })
+    }
+
+    fn get_line(&self, line: u32) -> Option<&str> {
+        self.get_line_and_offset(line).map(|(line, _)| line)
+    }
+
     /// A amount of document content line
     pub fn line_count(&self) -> u32 {
         self.line_offsets
@@ -160,16 +194,19 @@ impl FullTextDocument {
             .expect("The number of lines of text passed in is too long")
     }
 
-    /// The len of the document content
+    /// The length of the document content in UTF-8 bytes
     pub fn content_len(&self) -> u32 {
         self.content
-            .chars()
-            .count()
+            .len()
             .try_into()
             .expect("The length of the text passed in is too long")
     }
 
-    /// Converts a zero-based offset to a position
+    /// Converts a zero-based byte offset in the UTF8-encoded content to a position
+    ///
+    /// the offset is in bytes, the position is in UTF16 code units. rounds down if
+    /// the offset is not on a code unit boundary, or is beyond the end of the
+    /// content.
     pub fn position_at(&self, offset: u32) -> Position {
         let offset = offset.min(self.content_len());
         let (mut low, mut high) = (0, self.line_count());
@@ -177,7 +214,7 @@ impl FullTextDocument {
             // only one line
             return Position {
                 line: low,
-                character: offset,
+                character: line_offset_utf16(self.get_line(low).unwrap(), offset),
             };
         }
         while low < high {
@@ -198,21 +235,29 @@ impl FullTextDocument {
 
         Position {
             line,
-            character: offset - self.line_offsets[line as usize],
+            character: line_offset_utf16(
+                self.get_line(line).unwrap(),
+                offset - self.line_offsets[line as usize],
+            ),
         }
     }
 
-    /// Converts a position to a zero-based offset
+    /// Converts a position to a zero-based byte offset, suitable for slicing the
+    /// UTF-8 encoded content.
     pub fn offset_at(&self, position: Position) -> u32 {
         let Position { line, character } = position;
-        match self.line_offsets.get(line as usize) {
-            Some(&line_offset) => (character + line_offset).min(
-                if let Some(&next_line_offset) = self.line_offsets.get((line + 1) as usize) {
-                    next_line_offset
-                } else {
-                    self.content_len()
-                },
-            ),
+        match self.get_line_and_offset(line) {
+            Some((line, offset)) => {
+                let mut c = 0;
+                let mut iter = line.char_indices();
+                while let Some((idx, char)) = iter.next() {
+                    if c == character {
+                        return offset + idx as u32;
+                    }
+                    c += char.len_utf16() as u32;
+                }
+                offset + line.len() as u32
+            }
             None => {
                 if line >= self.line_count() {
                     self.content_len()
@@ -260,6 +305,35 @@ mod tests {
         assert_eq!(offset, 15);
     }
 
+    /// basic multilingual plane
+    #[test]
+    fn test_offset_at_bmp() {
+        // Euro symbol
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{20AC} euro".to_string());
+
+        let offset = text_document.offset_at(Position {
+            line: 0,
+            // E euro
+            //   ^
+            character: 2,
+        });
+        assert_eq!(offset, 4);
+    }
+
+    /// supplementary multilingual plane, aka surrogate pair
+    #[test]
+    fn test_offset_at_smp() {
+        // Deseret Small Letter Yee
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{10437} yee".to_string());
+        let offset = text_document.offset_at(Position {
+            line: 0,
+            // HL yee
+            //    ^
+            character: 3,
+        });
+        assert_eq!(offset, 5);
+    }
+
     #[test]
     fn test_position_at() {
         let text_document = full_text_document();
@@ -288,6 +362,76 @@ mod tests {
             Position {
                 line: 3,
                 character: 1,
+            }
+        );
+    }
+
+    /// basic multilingual plane
+    #[test]
+    fn test_position_at_bmp() {
+        // Euro symbol
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{20AC} euro".to_string());
+        let position = text_document.position_at(4);
+        assert_eq!(
+            position,
+            Position {
+                line: 0,
+                // E euro
+                //   ^
+                character: 2,
+            }
+        );
+
+        // multi-line content
+        let text_document =
+            FullTextDocument::new("js".to_string(), 2, "\n\n\u{20AC} euro\n\n".to_string());
+        let position = text_document.position_at(6);
+        assert_eq!(
+            position,
+            Position {
+                line: 2,
+                // E euro
+                //   ^
+                character: 2,
+            }
+        );
+    }
+
+    /// supplementary multilingual plane, aka surrogate pair
+    #[test]
+    fn test_position_at_smp() {
+        // Deseret Small Letter Yee
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{10437} yee".to_string());
+        assert_eq!(
+            text_document.position_at(5),
+            Position {
+                line: 0,
+                // HL yee
+                //    ^
+                character: 3,
+            }
+        );
+
+        // \u{10437} is 4 bytes wide. if not on a char boundary, round down
+        assert_eq!(
+            text_document.position_at(2),
+            Position {
+                line: 0,
+                character: 0,
+            }
+        );
+
+        // multi-line content
+        let text_document =
+            FullTextDocument::new("js".to_string(), 2, "\n\n\u{10437} yee\n\n".to_string());
+        let position = text_document.position_at(7);
+        assert_eq!(
+            position,
+            Position {
+                line: 2,
+                // HL yee
+                //    ^
+                character: 3,
             }
         );
     }
@@ -328,6 +472,63 @@ mod tests {
         };
         let content = text_document.get_content(Some(range));
         assert_eq!(content, "llo\nwor");
+    }
+
+    /// basic multilingual plane
+    #[test]
+    fn test_get_content_bmp() {
+        // Euro symbol
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{20AC} euro".to_string());
+
+        // Euro symbol is 1 UTF16 code unit wide
+        let range = Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 1,
+            },
+        };
+        let content = text_document.get_content(Some(range));
+        assert_eq!(content, "\u{20AC}");
+
+        // E euro
+        //   ^
+        let range = Range {
+            start: Position {
+                line: 0,
+                character: 2,
+            },
+            end: Position {
+                line: 0,
+                character: 3,
+            },
+        };
+        let content = text_document.get_content(Some(range));
+        assert_eq!(content, "e");
+    }
+
+    /// supplementary multilingual plane, aka surrogate pairs
+    #[test]
+    fn test_get_content_smp() {
+        // Deseret Small Letter Yee
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{10437} yee".to_string());
+
+        // surrogate pairs are 2 UTF16 code units wide
+        let range = Range {
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 0,
+                character: 2,
+            },
+        };
+        let content = text_document.get_content(Some(range));
+        assert_eq!(content, "\u{10437}");
     }
 
     #[test]
