@@ -16,11 +16,15 @@ fn computed_line_offsets(text: &str, is_at_line_start: bool, text_offset: Option
         vec![]
     };
 
-    for (idx, char) in text.char_indices() {
+    let mut chars = text.char_indices().peekable();
+    while let Some((idx, char)) = chars.next() {
         let idx: u32 = idx
             .try_into()
             .expect("The length of the text involved in the calculation is too long");
-        if char == '\n' || char == '\r' {
+        if char == '\r' && chars.peek() == Some(&(idx as usize + 1, '\n')) {
+            chars.next();
+            line_offsets.push(text_offset + idx + 2);
+        } else if char == '\n' || char == '\r' {
             line_offsets.push(text_offset + idx + 1);
         }
     }
@@ -225,7 +229,11 @@ mod tests {
     use super::*;
 
     fn full_text_document() -> FullTextDocument {
-        FullTextDocument::new("js".to_string(), 2, "he\nllo\nworld".to_string())
+        FullTextDocument::new(
+            "js".to_string(),
+            2,
+            "he\nllo\nworld\r\nfoo\rbar".to_string(),
+        )
     }
 
     #[test]
@@ -243,6 +251,13 @@ mod tests {
             character: 3,
         });
         assert_eq!(offset, 10);
+
+        // the `f` in `foo` (\r\n is a single line terminator)
+        let offset = text_document.offset_at(Position {
+            line: 3,
+            character: 1,
+        });
+        assert_eq!(offset, 15);
     }
 
     #[test]
@@ -265,7 +280,16 @@ mod tests {
                 line: 2,
                 character: 4,
             }
-        )
+        );
+
+        let position = text_document.position_at(15);
+        assert_eq!(
+            position,
+            Position {
+                line: 3,
+                character: 1,
+            }
+        );
     }
 
     #[test]
@@ -290,7 +314,7 @@ mod tests {
         };
         let range = Range { start, end };
         let content = text_document.get_content(Some(range));
-        assert_eq!(content, "he\nllo\nworld");
+        assert_eq!(content, text_document.content);
 
         let range = Range {
             start: Position {
@@ -348,8 +372,8 @@ mod tests {
             1,
         );
 
-        assert_eq!(&text_document.content, "he\nxx\ny\nworld");
-        assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8]);
+        assert_eq!(&text_document.content, "he\nxx\ny\nworld\r\nfoo\rbar");
+        assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8, 15, 19]);
         assert_eq!(text_document.version(), 1)
     }
 }
