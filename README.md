@@ -35,4 +35,4 @@ fn main() {
 
 ### with [`tower-lsp`](https://github.com/ebkalderon/tower-lsp)
 
-**coming soon**
+**Contact us via [issues](https://github.com/GiveMe-A-Name/lsp-textdocument/issues) if you require this with `tower-lsp`**
