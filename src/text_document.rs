@@ -72,7 +72,12 @@ impl FullTextDocument {
                     // update content
                     let Range { start, end } = range;
                     let (start_offset, end_offset) = (self.offset_at(*start), self.offset_at(*end));
-                    assert!(start_offset <= end_offset);
+                    assert!(
+                        start_offset <= end_offset,
+                        "Start offset must be less than end offset. {}:{} (offset {}) is not <= {}:{} (offset {})",
+                        start.line, start.character, start_offset,
+                        end.line, end.character, end_offset
+                    );
                     let (start_slice, end_slice) = (
                         self.content.get(0..start_offset as usize).unwrap_or(""),
                         self.content.get(end_offset as usize..).unwrap_or(""),
@@ -576,5 +581,32 @@ mod tests {
         assert_eq!(&text_document.content, "he\nxx\ny\nworld\r\nfoo\rbar");
         assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8, 15, 19]);
         assert_eq!(text_document.version(), 1)
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Start offset must be less than end offset. 2:0 (offset 7) is not <= 1:0 (offset 3)"
+    )]
+    fn test_update_invalid_range() {
+        let mut text_document = full_text_document();
+        // start is after end
+        let range = Range {
+            start: Position {
+                line: 2,
+                character: 0,
+            },
+            end: Position {
+                line: 1,
+                character: 0,
+            },
+        };
+        text_document.update(
+            &[TextDocumentContentChangeEvent {
+                text: String::from(""),
+                range: Some(range),
+                range_length: Some(0),
+            }],
+            1,
+        );
     }
 }
