@@ -2,17 +2,18 @@ name: Publish
 
 on:
   push:
-    branches: [ "main" ]
-env: 
+    branches: ["main"]
+env:
   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
 jobs:
   publish:
     if: "startsWith(github.event.head_commit.message, 'chore(release): publish')"
-  
+
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    - name: publish
-      run: cargo publish
+      - uses: actions/checkout@v3
+      - run: rustup update nightly-2022-11-03 && rustup default nightly-2022-11-03
+      - name: publish
+        run: cargo publish
