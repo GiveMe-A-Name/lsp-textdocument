@@ -214,14 +214,16 @@ impl FullTextDocument {
     /// content.
     pub fn position_at(&self, offset: u32) -> Position {
         let offset = offset.min(self.content_len());
-        let (mut low, mut high) = (0, self.line_count());
-        if high - low == 1 {
+        let line_count = self.line_count();
+        if line_count == 1 {
             // only one line
             return Position {
-                line: low,
-                character: line_offset_utf16(self.get_line(low).unwrap(), offset),
+                line: 0,
+                character: line_offset_utf16(self.get_line(0).unwrap(), offset),
             };
         }
+
+        let (mut low, mut high) = (0, line_count);
         while low < high {
             let mid = (low + high).div_floor(2);
             if offset
@@ -234,6 +236,14 @@ impl FullTextDocument {
             } else {
                 high = mid;
             }
+        }
+
+        if low == 0 {
+            // offset is on the first line
+            return Position {
+                line: 0,
+                character: line_offset_utf16(self.get_line(0).unwrap(), offset),
+            };
         }
 
         let line = low - 1;
@@ -367,6 +377,15 @@ mod tests {
             Position {
                 line: 3,
                 character: 1,
+            }
+        );
+
+        let position = text_document.position_at(0);
+        assert_eq!(
+            position,
+            Position {
+                line: 0,
+                character: 0,
             }
         );
     }
