@@ -104,7 +104,7 @@ impl TextDocuments {
     /// let params = serde_json::to_value("message produced by client").unwrap();
     ///
     /// let mut text_documents = TextDocuments::new();
-    /// text_documents.listen(method, &params);
+    /// let accept: bool = text_documents.listen(method, &params);
     /// ```
     pub fn listen(&mut self, method: &str, params: &Value) -> bool {
         match method {

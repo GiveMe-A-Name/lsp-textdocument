@@ -10,10 +10,10 @@ homepage = "https://github.com/GiveMe-A-Name/lsp-textdocument"
 repository = "https://github.com/GiveMe-A-Name/lsp-textdocument"
 
 [dependencies]
-anyhow = "1"
 lsp-types = "0.93.2"
 serde_json = "1.0"
 
 [dev-dependencies]
+anyhow = "1"
 lsp-server = "0.6.0"
 serde = { version = "1.0.147", features = ["derive"] }
