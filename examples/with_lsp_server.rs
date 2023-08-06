@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
     let mut documents = TextDocuments::new();
 
-    let server_capabilities = serde_json::to_value(&ServerCapabilities {
+    let server_capabilities = serde_json::to_value(ServerCapabilities {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             TextDocumentSyncKind::INCREMENTAL,
