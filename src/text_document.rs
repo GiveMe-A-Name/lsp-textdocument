@@ -348,6 +348,22 @@ mod tests {
         assert_eq!(offset, 5);
     }
 
+    /// a character beyond the end of the line should clamp to the end of the line
+    #[test]
+    fn test_offset_at_beyond_end_of_line() {
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{20AC} abc\nline 2".to_string());
+        // "\u{20AC} abc\nline 2" in UTF-8:
+        // \xE2 \x82 \xAC \x20 \x61 \x62 \x63 \x0A \x6C \x69 \x6E \x65 \x20 \x32
+        // ^ line 1 == 0                           ^ line 2 == 8
+        assert_eq!(text_document.line_offsets, vec![0, 8]);
+
+        let offset = text_document.offset_at(Position {
+            line: 0,
+            character: 100,
+        });
+        assert_eq!(offset, 8);
+    }
+
     #[test]
     fn test_position_at() {
         let text_document = full_text_document();
