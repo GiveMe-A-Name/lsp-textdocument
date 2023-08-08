@@ -84,7 +84,7 @@ impl FullTextDocument {
                         end.line, end.character, end_offset
                     );
                     self.content
-                        .replace_range((start_offset as usize)..(end_offset as usize), &text);
+                        .replace_range((start_offset as usize)..(end_offset as usize), text);
 
                     let (start_line, end_line) = (start.line, end.line);
                     assert!(start_line <= end_line);
@@ -95,8 +95,8 @@ impl FullTextDocument {
                     self.line_offsets
                         .splice(splice_start..=end_line as usize, added_line_offsets);
 
-                    let diff = (text.len() as i32)
-                        .saturating_sub_unsigned((end_offset as u32) - (start_offset as u32));
+                    let diff =
+                        (text.len() as i32).saturating_sub_unsigned(end_offset - start_offset);
                     if diff != 0 {
                         for i in
                             (splice_start + num_added_line_offsets)..(self.line_count() as usize)
@@ -135,7 +135,7 @@ impl FullTextDocument {
             )
         } else if self.content.chars().nth(offset as usize - 1) == Some('\n') {
             if self.line_offsets[position.line as usize] == offset {
-                (position.clone(), offset)
+                (*position, offset)
             } else if self.line_offsets[position.line as usize + 1] == offset {
                 (
                     Position {
@@ -151,7 +151,7 @@ impl FullTextDocument {
                 )
             }
         } else {
-            (position.clone(), offset)
+            (*position, offset)
         }
     }
 
