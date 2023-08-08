@@ -5,6 +5,10 @@ pub struct FullTextDocument {
     language_id: String,
     version: i32,
     content: String,
+
+    /// The value at index `i` in `line_offsets` is the index into `content`
+    /// that is the start of line `i`. As such, the first element of
+    /// `line_offsets` is always 0.
     line_offsets: Vec<u32>,
 }
 
@@ -71,7 +75,8 @@ impl FullTextDocument {
                 Some(range) => {
                     // update content
                     let Range { start, end } = range;
-                    let (start_offset, end_offset) = (self.offset_at(*start), self.offset_at(*end));
+                    let (start, start_offset) = self.find_canonical_position(start);
+                    let (end, end_offset) = self.find_canonical_position(end);
                     assert!(
                         start_offset <= end_offset,
                         "Start offset must be less than end offset. {}:{} (offset {}) is not <= {}:{} (offset {})",
@@ -84,33 +89,19 @@ impl FullTextDocument {
                     let (start_line, end_line) = (start.line, end.line);
                     assert!(start_line <= end_line);
                     let added_line_offsets = computed_line_offsets(text, false, Some(start_offset));
+                    let num_added_line_offsets = added_line_offsets.len();
 
-                    self.line_offsets = self
-                        .line_offsets
-                        .as_slice()
-                        .get(0..(start_line + 1) as usize)
-                        .unwrap_or(&[])
-                        .iter()
-                        .chain(added_line_offsets.iter())
-                        .chain(
-                            self.line_offsets
-                                .as_slice()
-                                .get((end_line + 1) as usize..)
-                                .unwrap_or(&[]),
-                        )
-                        .copied()
-                        .collect::<Vec<_>>();
+                    let splice_start = start_line as usize + 1;
+                    self.line_offsets
+                        .splice(splice_start..=end_line as usize, added_line_offsets);
 
-                    let diff =
-                        (text.len() as i32).saturating_sub_unsigned(end_offset - start_offset);
+                    let diff = (text.len() as i32)
+                        .saturating_sub_unsigned((end_offset as u32) - (start_offset as u32));
                     if diff != 0 {
-                        let (start, end) = (
-                            start_line + 1 + added_line_offsets.len() as u32,
-                            self.line_count(),
-                        );
-                        for i in start..end {
-                            self.line_offsets[i as usize] =
-                                self.line_offsets[i as usize].saturating_add_signed(diff);
+                        for i in
+                            (splice_start + num_added_line_offsets)..(self.line_count() as usize)
+                        {
+                            self.line_offsets[i] = self.line_offsets[i].saturating_add_signed(diff);
                         }
                     }
                 }
@@ -126,6 +117,42 @@ impl FullTextDocument {
         }
 
         self.version = version;
+    }
+
+    /// As demonstrated by test_multiple_position_same_offset(), in some cases,
+    /// there are multiple ways to reference the same Position. We map to a
+    /// "canonical Position" so we can avoid worrying about edge cases all over
+    /// the place.
+    fn find_canonical_position(&self, position: &Position) -> (Position, u32) {
+        let offset = self.offset_at(*position);
+        if offset == 0 {
+            (
+                Position {
+                    line: 0,
+                    character: 0,
+                },
+                0,
+            )
+        } else if self.content.chars().nth(offset as usize - 1) == Some('\n') {
+            if self.line_offsets[position.line as usize] == offset {
+                (position.clone(), offset)
+            } else if self.line_offsets[position.line as usize + 1] == offset {
+                (
+                    Position {
+                        line: position.line + 1,
+                        character: 0,
+                    },
+                    offset,
+                )
+            } else {
+                panic!(
+                    "could not determine canonical value for {position:?} in {:?}",
+                    self.content
+                )
+            }
+        } else {
+            (position.clone(), offset)
+        }
     }
 
     /// Document's language id
@@ -344,7 +371,8 @@ mod tests {
     /// a character beyond the end of the line should clamp to the end of the line
     #[test]
     fn test_offset_at_beyond_end_of_line() {
-        let text_document = FullTextDocument::new("js".to_string(), 2, "\u{20AC} abc\nline 2".to_string());
+        let text_document =
+            FullTextDocument::new("js".to_string(), 2, "\u{20AC} abc\nline 2".to_string());
         // "\u{20AC} abc\nline 2" in UTF-8:
         // \xE2 \x82 \xAC \x20 \x61 \x62 \x63 \x0A \x6C \x69 \x6E \x65 \x20 \x32
         // ^ line 1 == 0                           ^ line 2 == 8
@@ -635,5 +663,96 @@ mod tests {
             }],
             1,
         );
+    }
+
+    /// It turns out that there are multiple values for Position that can map to
+    /// the same offset following a newline.
+    #[test]
+    fn test_multiple_position_same_offset() {
+        let text_document = full_text_document();
+        let end_of_first_line = Position {
+            line: 0,
+            character: 3,
+        };
+        let start_of_second_line = Position {
+            line: 1,
+            character: 0,
+        };
+        assert_eq!(
+            text_document.offset_at(end_of_first_line),
+            text_document.offset_at(start_of_second_line)
+        );
+
+        let beyond_end_of_first_line = Position {
+            line: 0,
+            character: 10_000,
+        };
+        assert_eq!(
+            text_document.offset_at(beyond_end_of_first_line),
+            text_document.offset_at(start_of_second_line)
+        );
+    }
+
+    #[test]
+    fn test_insert_using_positions_after_newline_at_end_of_line() {
+        let mut doc = FullTextDocument::new(
+            "text".to_string(),
+            0,
+            "0:1332533\n0:1332534\n0:1332535\n0:1332536\n".to_string(),
+        );
+        doc.update(
+            &[TextDocumentContentChangeEvent {
+                range: Some(Range {
+                    // After \n at the end of line 1.
+                    start: Position {
+                        line: 1,
+                        character: 10,
+                    },
+                    // After \n at the end of line 2.
+                    end: Position {
+                        line: 2,
+                        character: 10,
+                    },
+                }),
+                range_length: None,
+                text: "1:6188912\n1:6188913\n1:6188914\n".to_string(),
+            }],
+            1,
+        );
+        assert_eq!(
+            doc.get_content(None),
+            concat!(
+                "0:1332533\n0:1332534\n",
+                "1:6188912\n1:6188913\n1:6188914\n",
+                "0:1332536\n",
+            ),
+        );
+        assert_eq!(doc.line_offsets, vec!(0, 10, 20, 30, 40, 50, 60));
+    }
+
+    #[test]
+    fn test_line_offsets() {
+        let mut doc =
+            FullTextDocument::new("text".to_string(), 0, "123456789\n123456789\n".to_string());
+        assert_eq!(doc.line_offsets, vec!(0, 10, 20));
+        doc.update(
+            &[TextDocumentContentChangeEvent {
+                range: Some(Range {
+                    start: Position {
+                        line: 1,
+                        character: 5,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 5,
+                    },
+                }),
+                range_length: None,
+                text: "\nA\nB\nC\n".to_string(),
+            }],
+            1,
+        );
+        assert_eq!(doc.get_content(None), "123456789\n12345\nA\nB\nC\n6789\n",);
+        assert_eq!(doc.line_offsets, vec!(0, 10, 16, 18, 20, 22, 27));
     }
 }
