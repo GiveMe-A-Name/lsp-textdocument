@@ -146,7 +146,7 @@ impl FullTextDocument {
                 )
             } else {
                 panic!(
-                    "could not determine canonical value for {position:?} in {:?}",
+                    "Could not determine canonical value for {position:?} in {:?}",
                     self.content
                 )
             }
