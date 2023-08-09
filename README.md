@@ -36,3 +36,7 @@ fn main() {
 ### with [`tower-lsp`](https://github.com/ebkalderon/tower-lsp)
 
 **Contact us via [issues](https://github.com/GiveMe-A-Name/lsp-textdocument/issues) if you require this with `tower-lsp`**
+
+## Attention
+
+- The text documents positions-encoding only supports `UTF-16`

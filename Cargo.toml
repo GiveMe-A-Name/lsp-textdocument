@@ -16,4 +16,4 @@ serde_json = "1.0"
 [dev-dependencies]
 anyhow = "1"
 lsp-server = "0.7.2"
-serde = { version = "1.0.147", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
