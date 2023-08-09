@@ -1,6 +1,6 @@
 # `lsp-textdocument`
 
-A LSP text documents manager that map of text document.
+A LSP text documents manager that helps mapping of textual content.
 
 ## Introduction
 
@@ -39,4 +39,4 @@ fn main() {
 
 ## Attention
 
-- The text documents positions-encoding only supports `UTF-16`
+- The text documents [position-encoding](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#positionEncodingKind) only supports `UTF-16`
