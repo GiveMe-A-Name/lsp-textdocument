@@ -133,7 +133,7 @@ impl FullTextDocument {
                 },
                 0,
             )
-        } else if self.content.chars().nth(offset as usize - 1) == Some('\n') {
+        } else if self.content.bytes().nth(offset as usize - 1) == Some(b'\n') {
             if self.line_offsets[position.line as usize] == offset {
                 (*position, offset)
             } else if self.line_offsets[position.line as usize + 1] == offset {
@@ -754,5 +754,38 @@ mod tests {
         );
         assert_eq!(doc.get_content(None), "123456789\n12345\nA\nB\nC\n6789\n",);
         assert_eq!(doc.line_offsets, vec!(0, 10, 16, 18, 20, 22, 27));
+    }
+
+    /// This tests a regression caused by confusing byte and character offsets.
+    /// When [update] was called on a position whose offset points just after a
+    /// non-newline when interpreted as bytes, but pointed just after at a
+    /// newline when interpreted as chars, it led to a crash.
+    #[test]
+    fn test_find_canonical_position_regression() {
+        // \u{20AC} is a single character in utf-16 but 3 bytes in utf-8,
+        // so the offsets in bytes of everything after it is +2 their offsets
+        // in characters.
+        let str = "\u{20AC}456789\n123456789\n";
+        let mut doc =
+            FullTextDocument::new("text".to_string(), 0, str.to_string());
+
+        let pos = Position { line: 0, character: 6 };
+        let offset = doc.offset_at(pos) as usize;
+        assert_ne!(str.bytes().nth(offset - 1), Some(b'\n'));
+        assert_eq!(str.chars().nth(offset - 1), Some('\n'));
+
+        doc.update(
+            &[TextDocumentContentChangeEvent {
+                range: Some(Range {
+                    start: pos,
+                    end: Position { line: 0, character: 7 },
+                }),
+                range_length: None,
+                text: "X".to_string(),
+            }],
+            1,
+        );
+        assert_eq!(doc.get_content(None), "\u{20AC}45678X\n123456789\n",);
+        assert_eq!(doc.line_offsets, vec!(0, 10, 20));
     }
 }
