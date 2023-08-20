@@ -133,7 +133,7 @@ impl FullTextDocument {
                 },
                 0,
             )
-        } else if self.content.bytes().nth(offset as usize - 1) == Some(b'\n') {
+        } else if self.content.as_bytes().get(offset as usize - 1).copied() == Some(b'\n') {
             if self.line_offsets[position.line as usize] == offset {
                 (*position, offset)
             } else if self.line_offsets[position.line as usize + 1] == offset {
@@ -771,7 +771,7 @@ mod tests {
 
         let pos = Position { line: 0, character: 6 };
         let offset = doc.offset_at(pos) as usize;
-        assert_ne!(str.bytes().nth(offset - 1), Some(b'\n'));
+        assert_ne!(str.as_bytes().get(offset - 1).copied(), Some(b'\n'));
         assert_eq!(str.chars().nth(offset - 1), Some('\n'));
 
         doc.update(
