@@ -133,7 +133,7 @@ impl FullTextDocument {
                 },
                 0,
             )
-        } else if self.content.bytes().nth(offset as usize - 1) == Some(b'\n') {
+        } else if self.content.as_bytes().get(offset as usize - 1) == Some(&b'\n') {
             if self.line_offsets[position.line as usize] == offset {
                 (*position, offset)
             } else if self.line_offsets[position.line as usize + 1] == offset {
@@ -766,19 +766,24 @@ mod tests {
         // so the offsets in bytes of everything after it is +2 their offsets
         // in characters.
         let str = "\u{20AC}456789\n123456789\n";
-        let mut doc =
-            FullTextDocument::new("text".to_string(), 0, str.to_string());
+        let mut doc = FullTextDocument::new("text".to_string(), 0, str.to_string());
 
-        let pos = Position { line: 0, character: 6 };
+        let pos = Position {
+            line: 0,
+            character: 6,
+        };
         let offset = doc.offset_at(pos) as usize;
-        assert_ne!(str.bytes().nth(offset - 1), Some(b'\n'));
+        assert_ne!(str.as_bytes().get(offset - 1), Some(&b'\n'));
         assert_eq!(str.chars().nth(offset - 1), Some('\n'));
 
         doc.update(
             &[TextDocumentContentChangeEvent {
                 range: Some(Range {
                     start: pos,
-                    end: Position { line: 0, character: 7 },
+                    end: Position {
+                        line: 0,
+                        character: 7,
+                    },
                 }),
                 range_length: None,
                 text: "X".to_string(),
