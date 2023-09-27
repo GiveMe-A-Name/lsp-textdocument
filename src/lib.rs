@@ -3,7 +3,6 @@
 //!
 //! The text documents [position-encoding](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#positionEncodingKind) only supports `UTF-16`
 
-#![feature(int_roundings)]
 mod text_document;
 mod text_documents;
 

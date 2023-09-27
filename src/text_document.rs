@@ -244,7 +244,7 @@ impl FullTextDocument {
 
         let (mut low, mut high) = (0, line_count);
         while low < high {
-            let mid = (low + high).div_floor(2);
+            let mid = (low + high) / 2;
             if offset
                 > *self
                     .line_offsets
