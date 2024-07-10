@@ -3,13 +3,13 @@ use lsp_types::{
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification,
     },
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Range, Url,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Range, Uri,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-pub struct TextDocuments(BTreeMap<Url, FullTextDocument>);
+pub struct TextDocuments(BTreeMap<Uri, FullTextDocument>);
 
 impl TextDocuments {
     /// Create a text documents
@@ -27,24 +27,24 @@ impl TextDocuments {
         Self(BTreeMap::new())
     }
 
-    pub fn documents(&self) -> &BTreeMap<Url, FullTextDocument> {
+    pub fn documents(&self) -> &BTreeMap<Uri, FullTextDocument> {
         &self.0
     }
 
-    /// Get specify document by giving Url
+    /// Get specify document by giving Uri
     ///
     /// # Examples:
     ///
     /// Basic usage:
     /// ```
     /// use lsp_textdocument::TextDocuments;
-    /// use lsp_types::Url;
+    /// use lsp_types::Uri;
     ///
     /// let text_documents = TextDocuments::new();
-    /// let uri:Url = "file://example.txt".parse().unwrap();
+    /// let uri:Uri = "file://example.txt".parse().unwrap();
     /// text_documents.get_document(&uri);
     /// ```
-    pub fn get_document(&self, uri: &Url) -> Option<&FullTextDocument> {
+    pub fn get_document(&self, uri: &Uri) -> Option<&FullTextDocument> {
         self.0.get(uri)
     }
 
@@ -55,9 +55,9 @@ impl TextDocuments {
     /// Basic usage:
     /// ```no_run
     /// use lsp_textdocument::TextDocuments;
-    /// use lsp_types::{Url, Range, Position};
+    /// use lsp_types::{Uri, Range, Position};
     ///
-    /// let uri: Url = "file://example.txt".parse().unwrap();
+    /// let uri: Uri = "file://example.txt".parse().unwrap();
     /// let text_documents = TextDocuments::new();
     ///
     /// // get document all content
@@ -70,25 +70,25 @@ impl TextDocuments {
     /// let sub_content = text_documents.get_document_content(&uri, Some(range));
     /// assert_eq!(sub_content, Some("ello rus"));
     /// ```
-    pub fn get_document_content(&self, uri: &Url, range: Option<Range>) -> Option<&str> {
+    pub fn get_document_content(&self, uri: &Uri, range: Option<Range>) -> Option<&str> {
         self.0.get(uri).map(|document| document.get_content(range))
     }
 
-    /// Get specify document's language by giving Url
+    /// Get specify document's language by giving Uri
     ///
     /// # Examples
     ///
     /// Basic usage:
     /// ```no_run
     /// use lsp_textdocument::TextDocuments;
-    /// use lsp_types::Url;
+    /// use lsp_types::Uri;
     ///
     /// let text_documents = TextDocuments::new();
-    /// let uri:Url = "file://example.js".parse().unwrap();
+    /// let uri:Uri = "file://example.js".parse().unwrap();
     /// let language =  text_documents.get_document_language(&uri);
     /// assert_eq!(language, Some("javascript"));
     /// ```
-    pub fn get_document_language(&self, uri: &Url) -> Option<&str> {
+    pub fn get_document_language(&self, uri: &Uri) -> Option<&str> {
         self.0.get(uri).map(|document| document.language_id())
     }
 
