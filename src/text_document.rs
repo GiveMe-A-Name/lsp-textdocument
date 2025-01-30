@@ -92,8 +92,9 @@ impl FullTextDocument {
                     let num_added_line_offsets = added_line_offsets.len();
 
                     let splice_start = start_line as usize + 1;
+                    let splice_end = std::cmp::min(end_line, self.line_count() - 1) as usize;
                     self.line_offsets
-                        .splice(splice_start..=end_line as usize, added_line_offsets);
+                        .splice(splice_start..=splice_end, added_line_offsets);
 
                     let diff =
                         (text.len() as i32).saturating_sub_unsigned(end_offset - start_offset);
@@ -636,6 +637,34 @@ mod tests {
         assert_eq!(&text_document.content, "he\nxx\ny\nworld\r\nfoo\rbar");
         assert_eq!(text_document.line_offsets, vec![0, 3, 6, 8, 15, 19]);
         assert_eq!(text_document.version(), 1)
+    }
+
+    #[test]
+    fn test_update_new_content_at_end() {
+        let mut text_document = full_text_document();
+        let new_text = String::from("bar\nbaz");
+
+        let range = Range {
+            start: Position {
+                line: 4,
+                character: 0,
+            },
+            end: Position {
+                line: 5,
+                character: 0,
+            },
+        };
+        text_document.update(
+            &[TextDocumentContentChangeEvent {
+                range: Some(range),
+                range_length: None,
+                text: new_text,
+            }],
+            1,
+        );
+
+        assert_eq!(&text_document.content, "he\nllo\nworld\r\nfoo\rbar\nbaz");
+        assert_eq!(text_document.line_offsets, vec![0, 3, 7, 14, 18, 22]);
     }
 
     #[test]
