@@ -14,6 +14,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - run: rustup update nightly-2022-11-03 && rustup default nightly-2022-11-03
+      - run: rustup update nightly-2024-10-17 && rustup default nightly-2024-10-17
       - name: publish
         run: cargo publish
