@@ -247,7 +247,7 @@ impl FullTextDocument {
         while low < high {
             let mid = (low + high) / 2;
             if offset
-                > *self
+                >= *self
                     .line_offsets
                     .get(mid as usize)
                     .expect("Unknown mid value")
@@ -493,6 +493,20 @@ mod tests {
                 // HL yee
                 //    ^
                 character: 3,
+            }
+        );
+    }
+
+    /// https://github.com/GiveMe-A-Name/lsp-textdocument/issues/53
+    #[test]
+    fn test_position_at_line_head() {
+        let text_document = FullTextDocument::new("js".to_string(), 2, "\nyee\n\n".to_string());
+        let position = text_document.position_at(1);
+        assert_eq!(
+            position,
+            Position {
+                line: 1,
+                character: 0,
             }
         );
     }
