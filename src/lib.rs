@@ -1,7 +1,7 @@
 //!
 //! A LSP text documents manager that helps mapping of text document.
 //!
-//! The text documents [position-encoding](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#positionEncodingKind) only supports `UTF-16`
+//! Supports all LSP 3.17 position encodings (UTF-8/UTF-16/UTF-32); defaults to UTF-16 for backward compatibility.
 
 mod text_document;
 mod text_documents;

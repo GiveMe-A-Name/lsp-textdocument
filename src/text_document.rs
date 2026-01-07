@@ -1,10 +1,11 @@
-use lsp_types::{Position, Range, TextDocumentContentChangeEvent};
+use lsp_types::{Position, PositionEncodingKind, Range, TextDocumentContentChangeEvent};
 
 #[derive(Debug)]
 pub struct FullTextDocument {
     language_id: String,
     version: i32,
     content: String,
+    encoding: PositionEncodingKind,
 
     /// The value at index `i` in `line_offsets` is the index into `content`
     /// that is the start of line `i`. As such, the first element of
@@ -57,13 +58,101 @@ fn line_offset_utf16(line: &str, offset: u32) -> u32 {
     c
 }
 
+fn line_offset_utf8(line: &str, offset: u32) -> u32 {
+    offset.min(
+        line
+            .len()
+            .try_into()
+            .expect("The length of the text involved in the calculation is too long"),
+    )
+}
+
+fn line_offset_utf32(line: &str, offset: u32) -> u32 {
+    let mut c = 0;
+    for (idx, ch) in line.char_indices() {
+        if idx + ch.len_utf8() > offset as usize || idx == offset as usize {
+            break;
+        }
+        c += 1;
+    }
+    c
+}
+
+fn units_to_byte_offset_utf16(line: &str, character: u32) -> u32 {
+    let mut c = 0;
+    for (idx, ch) in line.char_indices() {
+        if c == character {
+            return idx as u32;
+        }
+        let next = c + ch.len_utf16() as u32;
+        if next > character {
+            return idx as u32;
+        }
+        c = next;
+    }
+    line.len() as u32
+}
+
+fn units_to_byte_offset_utf8(line: &str, character: u32) -> u32 {
+    character.min(
+        line
+            .len()
+            .try_into()
+            .expect("The length of the text involved in the calculation is too long"),
+    )
+}
+
+fn units_to_byte_offset_utf32(line: &str, character: u32) -> u32 {
+    let mut c = 0;
+    for (idx, _ch) in line.char_indices() {
+        if c == character {
+            return idx as u32;
+        }
+        c += 1;
+        if c > character {
+            return idx as u32;
+        }
+    }
+    line.len() as u32
+}
+
+fn bytes_to_units(line: &str, offset: u32, encoding: &PositionEncodingKind) -> u32 {
+    if encoding == &PositionEncodingKind::UTF8 {
+        line_offset_utf8(line, offset)
+    } else if encoding == &PositionEncodingKind::UTF16 {
+        line_offset_utf16(line, offset)
+    } else {
+        line_offset_utf32(line, offset)
+    }
+}
+
+fn units_to_bytes(line: &str, character: u32, encoding: &PositionEncodingKind) -> u32 {
+    if encoding == &PositionEncodingKind::UTF8 {
+        units_to_byte_offset_utf8(line, character)
+    } else if encoding == &PositionEncodingKind::UTF16 {
+        units_to_byte_offset_utf16(line, character)
+    } else {
+        units_to_byte_offset_utf32(line, character)
+    }
+}
+
 impl FullTextDocument {
     pub fn new(language_id: String, version: i32, content: String) -> Self {
+        Self::new_with_encoding(language_id, version, content, PositionEncodingKind::UTF16)
+    }
+
+    pub fn new_with_encoding(
+        language_id: String,
+        version: i32,
+        content: String,
+        encoding: PositionEncodingKind,
+    ) -> Self {
         let line_offsets = computed_line_offsets(&content, true, None);
         Self {
             language_id,
             version,
             content,
+            encoding,
             line_offsets,
         }
     }
@@ -161,6 +250,10 @@ impl FullTextDocument {
         &self.language_id
     }
 
+    pub fn encoding(&self) -> PositionEncodingKind {
+        self.encoding.clone()
+    }
+
     /// Document's version
     pub fn version(&self) -> i32 {
         self.version
@@ -239,7 +332,7 @@ impl FullTextDocument {
             // only one line
             return Position {
                 line: 0,
-                character: line_offset_utf16(self.get_line(0).unwrap(), offset),
+                character: bytes_to_units(self.get_line(0).unwrap(), offset, &self.encoding),
             };
         }
 
@@ -262,7 +355,7 @@ impl FullTextDocument {
             // offset is on the first line
             return Position {
                 line: 0,
-                character: line_offset_utf16(self.get_line(0).unwrap(), offset),
+                character: bytes_to_units(self.get_line(0).unwrap(), offset, &self.encoding),
             };
         }
 
@@ -270,9 +363,10 @@ impl FullTextDocument {
 
         Position {
             line,
-            character: line_offset_utf16(
+            character: bytes_to_units(
                 self.get_line(line).unwrap(),
                 offset - self.line_offsets[line as usize],
+                &self.encoding,
             ),
         }
     }
@@ -283,15 +377,7 @@ impl FullTextDocument {
         let Position { line, character } = position;
         match self.get_line_and_offset(line) {
             Some((line, offset)) => {
-                let mut c = 0;
-                let iter = line.char_indices();
-                for (idx, char) in iter {
-                    if c == character {
-                        return offset + idx as u32;
-                    }
-                    c += char.len_utf16() as u32;
-                }
-                offset + line.len() as u32
+                offset + units_to_bytes(line, character, &self.encoding)
             }
             None => {
                 if line >= self.line_count() {
@@ -307,6 +393,7 @@ impl FullTextDocument {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lsp_types::PositionEncodingKind;
 
     fn full_text_document() -> FullTextDocument {
         FullTextDocument::new(
@@ -384,6 +471,83 @@ mod tests {
             character: 100,
         });
         assert_eq!(offset, 8);
+    }
+
+    #[test]
+    fn test_utf8_encoding_positions() {
+        let text_document = FullTextDocument::new_with_encoding(
+            "plain".to_string(),
+            1,
+            "\u{1F496}abc".to_string(),
+            PositionEncodingKind::UTF8,
+        );
+
+        // UTF-8 character offset is in bytes; emoji is 4 bytes.
+        assert_eq!(
+            text_document.offset_at(Position {
+                line: 0,
+                character: 4,
+            }),
+            4
+        );
+        assert_eq!(
+            text_document.position_at(4),
+            Position {
+                line: 0,
+                character: 4,
+            }
+        );
+
+        // beyond line end clamps to line end
+        assert_eq!(
+            text_document.offset_at(Position {
+                line: 0,
+                character: 99,
+            }),
+            text_document.content_len()
+        );
+    }
+
+    #[test]
+    fn test_utf32_encoding_positions() {
+        let text_document = FullTextDocument::new_with_encoding(
+            "plain".to_string(),
+            1,
+            "\u{1F496}abc".to_string(),
+            PositionEncodingKind::UTF32,
+        );
+
+        // UTF-32 character offset is in Unicode scalars; emoji counts as 1.
+        assert_eq!(
+            text_document.offset_at(Position {
+                line: 0,
+                character: 1,
+            }),
+            4
+        );
+        assert_eq!(
+            text_document.position_at(4),
+            Position {
+                line: 0,
+                character: 1,
+            }
+        );
+
+        // Position after the emoji should move into ASCII bytes/scalars correctly.
+        assert_eq!(
+            text_document.offset_at(Position {
+                line: 0,
+                character: 3,
+            }),
+            6
+        );
+        assert_eq!(
+            text_document.position_at(6),
+            Position {
+                line: 0,
+                character: 3,
+            }
+        );
     }
 
     #[test]

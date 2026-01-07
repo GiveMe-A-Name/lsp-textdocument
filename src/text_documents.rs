@@ -3,13 +3,22 @@ use lsp_types::{
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification,
     },
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Range, Uri,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, PositionEncodingKind,
+    Range, Uri,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Default)]
-pub struct TextDocuments(BTreeMap<Uri, FullTextDocument>);
+pub struct TextDocuments {
+    documents: BTreeMap<Uri, FullTextDocument>,
+    default_encoding: PositionEncodingKind,
+}
+
+impl Default for TextDocuments {
+    fn default() -> Self {
+        Self::with_encoding(PositionEncodingKind::UTF16)
+    }
+}
 
 impl TextDocuments {
     /// Create a text documents
@@ -24,11 +33,22 @@ impl TextDocuments {
     /// let text_documents = TextDocuments::new();
     /// ```
     pub fn new() -> Self {
-        Self(BTreeMap::new())
+        Self::with_encoding(PositionEncodingKind::UTF16)
+    }
+
+    pub fn with_encoding(default_encoding: PositionEncodingKind) -> Self {
+        Self {
+            documents: BTreeMap::new(),
+            default_encoding,
+        }
     }
 
     pub fn documents(&self) -> &BTreeMap<Uri, FullTextDocument> {
-        &self.0
+        &self.documents
+    }
+
+    pub fn default_encoding(&self) -> PositionEncodingKind {
+        self.default_encoding.clone()
     }
 
     /// Get specify document by giving Uri
@@ -45,7 +65,7 @@ impl TextDocuments {
     /// text_documents.get_document(&uri);
     /// ```
     pub fn get_document(&self, uri: &Uri) -> Option<&FullTextDocument> {
-        self.0.get(uri)
+        self.documents.get(uri)
     }
 
     /// Get specify document content by giving Range
@@ -71,7 +91,9 @@ impl TextDocuments {
     /// assert_eq!(sub_content, Some("ello rus"));
     /// ```
     pub fn get_document_content(&self, uri: &Uri, range: Option<Range>) -> Option<&str> {
-        self.0.get(uri).map(|document| document.get_content(range))
+        self.documents
+            .get(uri)
+            .map(|document| document.get_content(range))
     }
 
     /// Get specify document's language by giving Uri
@@ -89,7 +111,9 @@ impl TextDocuments {
     /// assert_eq!(language, Some("javascript"));
     /// ```
     pub fn get_document_language(&self, uri: &Uri) -> Option<&str> {
-        self.0.get(uri).map(|document| document.language_id())
+        self.documents
+            .get(uri)
+            .map(|document| document.language_id())
     }
 
     /// Listening the notification from client, you just need to pass `method` and `params`
@@ -113,19 +137,21 @@ impl TextDocuments {
                     .expect("Expect receive DidOpenTextDocumentParams");
                 let text_document = params.text_document;
 
-                let document = FullTextDocument::new(
+                let document = FullTextDocument::new_with_encoding(
                     text_document.language_id,
                     text_document.version,
                     text_document.text,
+                    // use default encoding negotiated at server init
+                    self.default_encoding.clone(),
                 );
-                self.0.insert(text_document.uri, document);
+                self.documents.insert(text_document.uri, document);
                 true
             }
             DidChangeTextDocument::METHOD => {
                 let params: DidChangeTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidChangeTextDocumentParams");
 
-                if let Some(document) = self.0.get_mut(&params.text_document.uri) {
+                if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
                     let changes = &params.content_changes;
                     let version = params.text_document.version;
                     document.update(changes, version);
@@ -136,7 +162,7 @@ impl TextDocuments {
                 let params: DidCloseTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidCloseTextDocumentParams");
 
-                self.0.remove(&params.text_document.uri);
+                self.documents.remove(&params.text_document.uri);
                 true
             }
             _ => {

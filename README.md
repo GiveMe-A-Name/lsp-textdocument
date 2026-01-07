@@ -19,13 +19,19 @@ This crate is base on [vscode-languageserver-textdocument](https://github.com/mi
 
 ```rust
 use lsp_textdocument::TextDocuments;
+use lsp_types::Uri;
 
 fn main() {
-    let text_documents = TextDocument::new();
-    ...
+    // Defaults to UTF-16 (per LSP backward compatibility)
+    let mut text_documents = TextDocuments::new();
 
+    // Or explicitly choose the negotiated encoding
+    // use lsp_types::PositionEncodingKind;
+    // let mut text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF8);
 
-    let text = text_documents.get_document_content(&url, None);
+    let uri: Uri = "file:///example.txt".parse().unwrap();
+    let text = text_documents.get_document_content(&uri, None);
+    println!("{:?}", text);
 }
 ```
 
@@ -37,7 +43,7 @@ fn main() {
 
 **Contact us via [issues](https://github.com/GiveMe-A-Name/lsp-textdocument/issues) if you require this with `tower-lsp`**
 
-## Attention
+## Position encodings
 
-- The text documents [position-encoding](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#positionEncodingKind) only supports `UTF-16`
-
+- Supports all LSP 3.17 position encodings: UTF-8, UTF-16, and UTF-32.
+- Default is UTF-16 to stay backward compatible; use `TextDocuments::with_encoding` or `FullTextDocument::new_with_encoding` to opt into UTF-8/UTF-32.
