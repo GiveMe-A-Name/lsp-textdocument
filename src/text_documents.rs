@@ -36,7 +36,7 @@ impl TextDocuments {
         Self::with_encoding(PositionEncodingKind::UTF16)
     }
 
-    /// Create a text documents with a specific position encoding
+    /// Create a TextDocuments instance with a specific position encoding
     ///
     /// This method allows you to specify the position encoding used for character positions
     /// in text documents. The encoding determines how character offsets are calculated and is
@@ -75,7 +75,7 @@ impl TextDocuments {
     /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF8);
     /// ```
     ///
-    /// Using UTF-32 encoding where each character is one unit:
+    /// Using UTF-32 encoding where each Unicode code point is one unit:
     ///
     /// ```
     /// use lsp_textdocument::TextDocuments;
