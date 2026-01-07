@@ -36,6 +36,53 @@ impl TextDocuments {
         Self::with_encoding(PositionEncodingKind::UTF16)
     }
 
+    /// Create a TextDocuments instance with a specific position encoding
+    ///
+    /// This method allows you to specify the position encoding used for character positions
+    /// in text documents. The encoding determines how character offsets are calculated and is
+    /// important for proper LSP communication between client and server.
+    ///
+    /// # Arguments
+    ///
+    /// * `default_encoding` - The position encoding to use. Can be UTF-8, UTF-16, or UTF-32.
+    ///
+    /// # Position Encodings
+    ///
+    /// - **UTF-16**: The default encoding for backward compatibility with LSP 3.16 and earlier.
+    ///   Each UTF-16 code unit counts as one position unit.
+    /// - **UTF-8**: Each byte counts as one position unit. More efficient for ASCII-heavy text.
+    /// - **UTF-32**: Each Unicode code point counts as one position unit.
+    ///
+    /// The encoding should match what was negotiated with the LSP client during initialization.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with UTF-16 (default):
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF16);
+    /// ```
+    ///
+    /// Using UTF-8 encoding for better performance with ASCII text:
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF8);
+    /// ```
+    ///
+    /// Using UTF-32 encoding where each Unicode code point is one unit:
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF32);
+    /// ```
     pub fn with_encoding(default_encoding: PositionEncodingKind) -> Self {
         Self {
             documents: BTreeMap::new(),
