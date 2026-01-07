@@ -47,6 +47,11 @@ impl TextDocuments {
         &self.documents
     }
 
+    /// Returns the default position encoding used for newly created documents.
+    ///
+    /// This is useful for checking which encoding was configured or negotiated
+    /// (for example, during server initialization) when this `TextDocuments`
+    /// instance was created.
     pub fn default_encoding(&self) -> PositionEncodingKind {
         self.default_encoding.clone()
     }
