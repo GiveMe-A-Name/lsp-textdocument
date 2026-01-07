@@ -250,6 +250,8 @@ impl FullTextDocument {
         &self.language_id
     }
 
+    /// Returns the position encoding kind used by this document when
+    /// converting between LSP positions and byte offsets.
     pub fn encoding(&self) -> PositionEncodingKind {
         self.encoding.clone()
     }
