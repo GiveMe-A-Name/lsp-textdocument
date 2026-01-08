@@ -3,13 +3,22 @@ use lsp_types::{
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification,
     },
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Range, Uri,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, PositionEncodingKind,
+    Range, Uri,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Default)]
-pub struct TextDocuments(BTreeMap<Uri, FullTextDocument>);
+pub struct TextDocuments {
+    documents: BTreeMap<Uri, FullTextDocument>,
+    default_encoding: PositionEncodingKind,
+}
+
+impl Default for TextDocuments {
+    fn default() -> Self {
+        Self::with_encoding(PositionEncodingKind::UTF16)
+    }
+}
 
 impl TextDocuments {
     /// Create a text documents
@@ -24,11 +33,77 @@ impl TextDocuments {
     /// let text_documents = TextDocuments::new();
     /// ```
     pub fn new() -> Self {
-        Self(BTreeMap::new())
+        Self::with_encoding(PositionEncodingKind::UTF16)
     }
 
+    /// Create a TextDocuments instance with a specific position encoding
+    ///
+    /// This method allows you to specify the position encoding used for character positions
+    /// in text documents. The encoding determines how character offsets are calculated and is
+    /// important for proper LSP communication between client and server.
+    ///
+    /// # Arguments
+    ///
+    /// * `default_encoding` - The position encoding to use. Can be UTF-8, UTF-16, or UTF-32.
+    ///
+    /// # Position Encodings
+    ///
+    /// - **UTF-16**: The default encoding for backward compatibility with LSP 3.16 and earlier.
+    ///   Each UTF-16 code unit counts as one position unit.
+    /// - **UTF-8**: Each byte counts as one position unit. More efficient for ASCII-heavy text.
+    /// - **UTF-32**: Each Unicode code point counts as one position unit.
+    ///
+    /// The encoding should match what was negotiated with the LSP client during initialization.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with UTF-16 (default):
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF16);
+    /// ```
+    ///
+    /// Using UTF-8 encoding for better performance with ASCII text:
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF8);
+    /// ```
+    ///
+    /// Using UTF-32 encoding where each Unicode code point is one unit:
+    ///
+    /// ```
+    /// use lsp_textdocument::TextDocuments;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let text_documents = TextDocuments::with_encoding(PositionEncodingKind::UTF32);
+    /// ```
+    pub fn with_encoding(default_encoding: PositionEncodingKind) -> Self {
+        Self {
+            documents: BTreeMap::new(),
+            default_encoding,
+        }
+    }
+
+    #[allow(clippy::mutable_key_type)]
+    // `Uri` (url::Url) implements interior mutability APIs, but we never mutate keys after
+    // insertion, and map operations rely on its stable ordering. Suppress the lint here.
     pub fn documents(&self) -> &BTreeMap<Uri, FullTextDocument> {
-        &self.0
+        &self.documents
+    }
+
+    /// Returns the default position encoding used for newly created documents.
+    ///
+    /// This is useful for checking which encoding was configured or negotiated
+    /// (for example, during server initialization) when this `TextDocuments`
+    /// instance was created.
+    pub fn default_encoding(&self) -> PositionEncodingKind {
+        self.default_encoding.clone()
     }
 
     /// Get specify document by giving Uri
@@ -45,7 +120,7 @@ impl TextDocuments {
     /// text_documents.get_document(&uri);
     /// ```
     pub fn get_document(&self, uri: &Uri) -> Option<&FullTextDocument> {
-        self.0.get(uri)
+        self.documents.get(uri)
     }
 
     /// Get specify document content by giving Range
@@ -71,7 +146,9 @@ impl TextDocuments {
     /// assert_eq!(sub_content, Some("ello rus"));
     /// ```
     pub fn get_document_content(&self, uri: &Uri, range: Option<Range>) -> Option<&str> {
-        self.0.get(uri).map(|document| document.get_content(range))
+        self.documents
+            .get(uri)
+            .map(|document| document.get_content(range))
     }
 
     /// Get specify document's language by giving Uri
@@ -89,7 +166,9 @@ impl TextDocuments {
     /// assert_eq!(language, Some("javascript"));
     /// ```
     pub fn get_document_language(&self, uri: &Uri) -> Option<&str> {
-        self.0.get(uri).map(|document| document.language_id())
+        self.documents
+            .get(uri)
+            .map(|document| document.language_id())
     }
 
     /// Listening the notification from client, you just need to pass `method` and `params`
@@ -113,19 +192,21 @@ impl TextDocuments {
                     .expect("Expect receive DidOpenTextDocumentParams");
                 let text_document = params.text_document;
 
-                let document = FullTextDocument::new(
+                let document = FullTextDocument::new_with_encoding(
                     text_document.language_id,
                     text_document.version,
                     text_document.text,
+                    // use default encoding negotiated at server init
+                    self.default_encoding.clone(),
                 );
-                self.0.insert(text_document.uri, document);
+                self.documents.insert(text_document.uri, document);
                 true
             }
             DidChangeTextDocument::METHOD => {
                 let params: DidChangeTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidChangeTextDocumentParams");
 
-                if let Some(document) = self.0.get_mut(&params.text_document.uri) {
+                if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
                     let changes = &params.content_changes;
                     let version = params.text_document.version;
                     document.update(changes, version);
@@ -136,7 +217,7 @@ impl TextDocuments {
                 let params: DidCloseTextDocumentParams = serde_json::from_value(params.clone())
                     .expect("Expect receive DidCloseTextDocumentParams");
 
-                self.0.remove(&params.text_document.uri);
+                self.documents.remove(&params.text_document.uri);
                 true
             }
             _ => {
