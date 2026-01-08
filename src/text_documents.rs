@@ -90,6 +90,9 @@ impl TextDocuments {
         }
     }
 
+    #[allow(clippy::mutable_key_type)]
+    // `Uri` (url::Url) implements interior mutability APIs, but we never mutate keys after
+    // insertion, and map operations rely on its stable ordering. Suppress the lint here.
     pub fn documents(&self) -> &BTreeMap<Uri, FullTextDocument> {
         &self.documents
     }
