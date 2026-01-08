@@ -141,6 +141,73 @@ impl FullTextDocument {
         Self::new_with_encoding(language_id, version, content, PositionEncodingKind::UTF16)
     }
 
+    /// Create a new text document with a specific position encoding
+    ///
+    /// This method allows you to create a text document with a specific position encoding
+    /// for character positions. The encoding determines how character offsets are calculated
+    /// and is important for proper LSP communication between client and server.
+    ///
+    /// Use this method instead of [`new()`](Self::new) when you need to use a position encoding
+    /// other than UTF-16, or when you want to explicitly specify the encoding to match what
+    /// was negotiated with the LSP client during initialization.
+    ///
+    /// # Arguments
+    ///
+    /// * `language_id` - The language identifier for the document (e.g., "rust", "javascript")
+    /// * `version` - The version number of the document
+    /// * `content` - The full text content of the document
+    /// * `encoding` - The position encoding to use. Can be UTF-8, UTF-16, or UTF-32.
+    ///
+    /// # Position Encodings
+    ///
+    /// - **UTF-16**: The default encoding for backward compatibility with LSP 3.16 and earlier.
+    ///   Each UTF-16 code unit counts as one position unit. Use [`new()`](Self::new) for this.
+    /// - **UTF-8**: Each byte counts as one position unit. More efficient for ASCII-heavy text.
+    /// - **UTF-32**: Each Unicode code point counts as one position unit.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with UTF-16 (default):
+    ///
+    /// ```
+    /// use lsp_textdocument::FullTextDocument;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let doc = FullTextDocument::new_with_encoding(
+    ///     "rust".to_string(),
+    ///     1,
+    ///     "fn main() {}".to_string(),
+    ///     PositionEncodingKind::UTF16
+    /// );
+    /// ```
+    ///
+    /// Using UTF-8 encoding for better performance with ASCII text:
+    ///
+    /// ```
+    /// use lsp_textdocument::FullTextDocument;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let doc = FullTextDocument::new_with_encoding(
+    ///     "javascript".to_string(),
+    ///     1,
+    ///     "console.log('Hello');".to_string(),
+    ///     PositionEncodingKind::UTF8
+    /// );
+    /// ```
+    ///
+    /// Using UTF-32 encoding where each Unicode code point is one unit:
+    ///
+    /// ```
+    /// use lsp_textdocument::FullTextDocument;
+    /// use lsp_types::PositionEncodingKind;
+    ///
+    /// let doc = FullTextDocument::new_with_encoding(
+    ///     "plain".to_string(),
+    ///     1,
+    ///     "Hello 🦀 World".to_string(),
+    ///     PositionEncodingKind::UTF32
+    /// );
+    /// ```
     pub fn new_with_encoding(
         language_id: String,
         version: i32,
